@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   GoogleMap,
   useLoadScript,
@@ -111,8 +111,39 @@ export default function MapApp() {
   const set_home = React.useCallback(({ lat, lng }) => {
     setUser((user) => ({...user, home_lat: lat, home_lng: lng}));
   }, []);
-  console.log(user);
 
+  const set_work = React.useCallback(({ lat, lng }) => {
+    setUser((user) => ({...user, work_lat: lat, work_lng: lng}));
+  }, []);
+
+  const set_depart_time = (event) => {
+    let time = event.target.value;
+    let date = new Date("1970-01-01 " + time);
+    if (date === "Invalid Date") return;
+
+    time = parseInt(date.getHours())*60+parseInt(date.getMinutes());
+    setUser((user) => ({...user, depart_time: time}));
+  };
+
+  const set_return_time = (event) => {
+    let time = event.target.value;
+    let date = new Date("1970-01-01 " + time);
+    if (date === "Invalid Date") return;
+
+    time = parseInt(date.getHours())*60+parseInt(date.getMinutes());
+    setUser((user) => ({...user, return_time: time}));
+  };
+
+  const userUpdateOptions = {
+    method: 'PUT',
+    headers: { 'Content-type': 'application/json',
+    'Access-Control-Allow-Origin': '*'},
+    body: JSON.stringify(user),
+  };
+
+  fetch('http://localhost:8080/', userUpdateOptions)
+    .then(response => console.log(response))
+    .catch();
 
   if (loadError) return "Error";
   if (!isLoaded) return "Loading...";
@@ -127,7 +158,18 @@ export default function MapApp() {
       </h1>
 
       <Locate panTo={panTo} />
-      <Search panTo={panTo} set_home={set_home} />
+      <div className="settings">
+        <SearchHome panTo={panTo} set_home={set_home} />
+        <div>
+          <span>depart:</span>
+          <input className="inputs" onChange={set_depart_time}></input>
+        </div>
+        <SearchWork panTo={panTo} set_work={set_work} />
+        <div>
+          <span>return:</span>
+          <input className="inputs" onChange={set_return_time}></input>
+        </div>
+      </div>
 
       <GoogleMap
         id="map"
@@ -162,7 +204,19 @@ export default function MapApp() {
               setSelected(user);
             }}
             icon={{
-              url: `user.svg`,
+              url: `home.svg`,
+              origin: new window.google.maps.Point(0, 0),
+              anchor: new window.google.maps.Point(15, 15),
+              scaledSize: new window.google.maps.Size(30, 30),
+            }}
+          />) : null}
+
+        {user.work_lat != null ? (
+          <Marker
+            key={`${user.work_lat}-${user.work_lng}`}
+            position={{ lat: user.work_lat, lng: user.work_lng }}
+            icon={{
+              url: `work.svg`,
               origin: new window.google.maps.Point(0, 0),
               anchor: new window.google.maps.Point(15, 15),
               scaledSize: new window.google.maps.Size(30, 30),
@@ -215,7 +269,7 @@ function Locate({ panTo }) {
   );
 }
 
-function Search({ panTo, set_home }) {
+function SearchHome({ panTo, set_home }) {
   const {
     ready,
     value,
@@ -248,15 +302,67 @@ function Search({ panTo, set_home }) {
   };
 
   return (
-    <div className="search">
+    <Combobox onSelect={handleSelect}>
+      <ComboboxInput
+        value={value}
+        onChange={handleInput}
+        disabled={!ready}
+        placeholder="Search home"
+      />
+      <ComboboxPopover className="suggestion">
+        <ComboboxList>
+          {status === "OK" &&
+            data.map(({ id, description }) => (
+              <ComboboxOption key={id} value={description} />
+            ))}
+        </ComboboxList>
+      </ComboboxPopover>
+    </Combobox>
+  );
+}
+
+function SearchWork({ panTo, set_work }) {
+  const {
+    ready,
+    value,
+    suggestions: { status, data },
+    setValue,
+    clearSuggestions,
+  } = usePlacesAutocomplete({
+    requestOptions: {
+      location: { lat: () => 32.715736, lng: () => -117.161087 },
+      radius: 100 * 1000,
+    },
+  });
+
+  const handleInput = (e) => {
+    setValue(e.target.value);
+  };
+
+  const handleSelect = async (address) => {
+    setValue(address, false);
+    clearSuggestions();
+
+    try {
+      const results = await getGeocode({ address });
+      const { lat, lng } = await getLatLng(results[0]);
+      panTo({ lat, lng });
+      set_work({ lat, lng });
+    } catch (error) {
+      console.log("😱 Error: ", error);
+    }
+  };
+
+  return (
+    <div className="search-work">
       <Combobox onSelect={handleSelect}>
         <ComboboxInput
           value={value}
           onChange={handleInput}
           disabled={!ready}
-          placeholder="Set home"
+          placeholder="Search work"
         />
-        <ComboboxPopover>
+        <ComboboxPopover className="suggestion">
           <ComboboxList>
             {status === "OK" &&
               data.map(({ id, description }) => (
