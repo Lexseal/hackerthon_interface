@@ -51,3 +51,7 @@ h1 {
   width: 30px;
   cursor: pointer;
 }
+
+.pair-button {
+  margin-left: 10px;
+}

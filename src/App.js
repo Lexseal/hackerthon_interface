@@ -4,6 +4,7 @@ import {
   useLoadScript,
   Marker,
   InfoWindow,
+  //Geocoder,
 } from "@react-google-maps/api";
 import usePlacesAutocomplete, {
   getGeocode,
@@ -32,7 +33,7 @@ const options = {
 };
 const center = {
   lat: 32.715736,
-  lng: -117.161087,
+  lng: -117.161087, // san diego location
 };
 
 function generate_name() {
@@ -43,7 +44,19 @@ function generate_name() {
   return name;
 }
 
-const people = [];
+const default_user = {
+  name: "Lexseal Lin",
+  home_lat: null,
+  home_lng: null,
+  depart_time: 1,
+  work_lat: (Math.random()-0.5)+32.8686,
+  work_lng: (Math.random()-0.5)-116.9728,
+  return_time: 2,
+  perferece: Math.round(Math.random()*2-1),
+  radius: Math.random()*5,
+}
+
+const default_people = [];
 for (let i = 0; i < 5; i++) {
   const person = {
     name: generate_name()+" "+generate_name(),
@@ -56,16 +69,16 @@ for (let i = 0; i < 5; i++) {
     perferece: Math.round(Math.random()*2-1),
     radius: Math.random()*5,
   };
-  people.push(person);
+  default_people.push(person);
 }
-console.log(people);
 
 export default function MapApp() {
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
     libraries,
   });
-  const [markers, setMarkers] = React.useState([]);
+  const [user, setUser] = React.useState(default_user);
+  const [people, setMarkers] = React.useState(default_people);
   const [selected, setSelected] = React.useState(null);
 
   const onMapClick = React.useCallback((e) => {
@@ -95,6 +108,12 @@ export default function MapApp() {
     mapRef.current.setZoom(14);
   }, []);
 
+  const set_home = React.useCallback(({ lat, lng }) => {
+    setUser((user) => ({...user, home_lat: lat, home_lng: lng}));
+  }, []);
+  console.log(user);
+
+
   if (loadError) return "Error";
   if (!isLoaded) return "Loading...";
 
@@ -108,7 +127,7 @@ export default function MapApp() {
       </h1>
 
       <Locate panTo={panTo} />
-      <Search panTo={panTo} />
+      <Search panTo={panTo} set_home={set_home} />
 
       <GoogleMap
         id="map"
@@ -116,24 +135,39 @@ export default function MapApp() {
         zoom={10}
         center={center}
         options={options}
-        onClick={onMapClick}
+        //onClick={onMapClick}
         onLoad={onMapLoad}
       >
-        {people.map((marker) => (
+        {people.map((person) => (
           <Marker
-            key={`${marker.home_lat}-${marker.home_lng}`}
-            position={{ lat: marker.home_lat, lng: marker.home_lng }}
+            key={`${person.home_lat}-${person.home_lng}`}
+            position={{ lat: person.home_lat, lng: person.home_lng }}
             onClick={() => {
-              setSelected(marker);
+              setSelected(person);
             }}
             icon={{
-              url: `car1.svg`,
+              url: `car${Math.floor(parseFloat(person.home_lat)*100000)%3+1}.svg`,
               origin: new window.google.maps.Point(0, 0),
               anchor: new window.google.maps.Point(15, 15),
               scaledSize: new window.google.maps.Size(30, 30),
             }}
           />
         ))}
+
+        {user.home_lat != null ? (
+          <Marker
+            key={`${user.home_lat}-${user.home_lng}`}
+            position={{ lat: user.home_lat, lng: user.home_lng }}
+            onClick={() => {
+              setSelected(user);
+            }}
+            icon={{
+              url: `user.svg`,
+              origin: new window.google.maps.Point(0, 0),
+              anchor: new window.google.maps.Point(15, 15),
+              scaledSize: new window.google.maps.Size(30, 30),
+            }}
+          />) : null}
 
         {selected ? (
           <InfoWindow
@@ -144,12 +178,14 @@ export default function MapApp() {
           >
             <div>
               <h2>
-                <span role="img" aria-label="ride">
-                  🚗
-                </span>{" "}
                 {selected.name}
+                <button className="pair-button">Pair</button>
               </h2>
-              <p>Location: {parseFloat(selected.home_lat).toFixed(4)}, {parseFloat(selected.home_lng).toFixed(4)}</p>
+              <p>Home: {parseFloat(selected.home_lat).toFixed(4)}, {parseFloat(selected.home_lng).toFixed(4)}</p>
+              <p>Work: {parseFloat(selected.work_lat).toFixed(4)}, {parseFloat(selected.work_lng).toFixed(4)}</p>
+              <p>Departure: {selected.depart_time}</p>
+              <p>Return: {selected.return_time}</p>
+              <p>Preference: {selected.perferece}</p>
             </div>
           </InfoWindow>
         ) : null}
@@ -179,7 +215,7 @@ function Locate({ panTo }) {
   );
 }
 
-function Search({ panTo }) {
+function Search({ panTo, set_home }) {
   const {
     ready,
     value,
@@ -188,12 +224,10 @@ function Search({ panTo }) {
     clearSuggestions,
   } = usePlacesAutocomplete({
     requestOptions: {
-      location: { lat: () => 43.6532, lng: () => -79.3832 },
+      location: { lat: () => 32.715736, lng: () => -117.161087 },
       radius: 100 * 1000,
     },
   });
-
-  // https://developers.google.com/maps/documentation/javascript/reference/places-autocomplete-service#AutocompletionRequest
 
   const handleInput = (e) => {
     setValue(e.target.value);
@@ -207,6 +241,7 @@ function Search({ panTo }) {
       const results = await getGeocode({ address });
       const { lat, lng } = await getLatLng(results[0]);
       panTo({ lat, lng });
+      set_home({ lat, lng });
     } catch (error) {
       console.log("😱 Error: ", error);
     }
@@ -219,7 +254,7 @@ function Search({ panTo }) {
           value={value}
           onChange={handleInput}
           disabled={!ready}
-          placeholder="Search your location"
+          placeholder="Set home"
         />
         <ComboboxPopover>
           <ComboboxList>
