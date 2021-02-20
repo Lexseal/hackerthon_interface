@@ -16,7 +16,6 @@ import {
   ComboboxList,
   ComboboxOption,
 } from "@reach/combobox";
-import { formatRelative } from "date-fns";
 
 import "@reach/combobox/styles.css";
 import mapStyles from "./mapStyles";
@@ -32,11 +31,36 @@ const options = {
   zoomControl: true,
 };
 const center = {
-  lat: 43.6532,
-  lng: -79.3832,
+  lat: 32.715736,
+  lng: -117.161087,
 };
 
-export default function App() {
+function generate_name() {
+  let name = "";
+  for (let i = 0; i < Math.random()*10; i++) {
+    name += String.fromCharCode(97+Math.floor(Math.random()*26))
+  }
+  return name;
+}
+
+const people = [];
+for (let i = 0; i < 5; i++) {
+  const person = {
+    name: generate_name()+" "+generate_name(),
+    home_lat: (Math.random()-0.5)+32.8686,
+    home_lng: (Math.random()-0.5)-116.9728,
+    depart_time: 1,
+    work_lat: (Math.random()-0.5)+32.8686,
+    work_lng: (Math.random()-0.5)-116.9728,
+    return_time: 2,
+    perferece: Math.round(Math.random()*2-1),
+    radius: Math.random()*5,
+  };
+  people.push(person);
+}
+console.log(people);
+
+export default function MapApp() {
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
     libraries,
@@ -48,9 +72,15 @@ export default function App() {
     setMarkers((current) => [
       ...current,
       {
-        lat: e.latLng.lat(),
-        lng: e.latLng.lng(),
-        time: new Date(),
+        name: "John Doe",
+        home_lat: e.latLng.lat(),
+        home_lng: e.latLng.lng(),
+        depart_time: 1,
+        work_lat: e.latLng.lat(),
+        work_lng: e.latLng.lng(),
+        return_time: 2,
+        perferece: 0,
+        radius: 1,
       },
     ]);
   }, []);
@@ -71,9 +101,9 @@ export default function App() {
   return (
     <div>
       <h1>
-        Bears{" "}
-        <span role="img" aria-label="tent">
-          ⛺️
+        Ride {" "}
+        <span role="img" aria-label="car">
+          🚗
         </span>
       </h1>
 
@@ -83,21 +113,21 @@ export default function App() {
       <GoogleMap
         id="map"
         mapContainerStyle={mapContainerStyle}
-        zoom={8}
+        zoom={10}
         center={center}
         options={options}
         onClick={onMapClick}
         onLoad={onMapLoad}
       >
-        {markers.map((marker) => (
+        {people.map((marker) => (
           <Marker
-            key={`${marker.lat}-${marker.lng}`}
-            position={{ lat: marker.lat, lng: marker.lng }}
+            key={`${marker.home_lat}-${marker.home_lng}`}
+            position={{ lat: marker.home_lat, lng: marker.home_lng }}
             onClick={() => {
               setSelected(marker);
             }}
             icon={{
-              url: `/bear.svg`,
+              url: `car1.svg`,
               origin: new window.google.maps.Point(0, 0),
               anchor: new window.google.maps.Point(15, 15),
               scaledSize: new window.google.maps.Size(30, 30),
@@ -107,19 +137,19 @@ export default function App() {
 
         {selected ? (
           <InfoWindow
-            position={{ lat: selected.lat, lng: selected.lng }}
+            position={{ lat: selected.home_lat, lng: selected.home_lng }}
             onCloseClick={() => {
               setSelected(null);
             }}
           >
             <div>
               <h2>
-                <span role="img" aria-label="bear">
-                  🐻
+                <span role="img" aria-label="ride">
+                  🚗
                 </span>{" "}
-                Alert
+                {selected.name}
               </h2>
-              <p>Spotted {formatRelative(selected.time, new Date())}</p>
+              <p>Location: {parseFloat(selected.home_lat).toFixed(4)}, {parseFloat(selected.home_lng).toFixed(4)}</p>
             </div>
           </InfoWindow>
         ) : null}
