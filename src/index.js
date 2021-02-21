@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 import MapApp from './App';
+import ParticlesBg from 'particles-bg'
 
 function generate_name() {
   let name = "";
@@ -41,19 +42,56 @@ const default_people = [];
 //   default_people.push(person);
 // }
 
-const fetch_user = (name) => {
-  fetch('http://localhost:8080/fetch/?user='+name)
+const fetch_user = (name, pass) => {
+  fetch(`http://localhost:8080/login/?user=${name}&pass=${pass}`)
    .then(response => response.json())
    .then(data => {
-     console.log(data);
-    ReactDOM.render(
+     if (data != null && data.length != 0) {
+      console.log(data);
+      ReactDOM.render(
       <React.StrictMode>
         <MapApp default_user={data} default_people={default_people}/>
       </React.StrictMode>,
       document.getElementById('root')
-    );
+      );
+     } else {
+       alert("wrong user or password");
+     }
    })
-   .catch();
+   .catch(() => alert("wrong user or password"));
 }
 
-fetch_user("a qn");
+let user_name;
+let password;
+
+ReactDOM.render(
+  <React.StrictMode>
+    <h1 id="login-title">Neighbor Ride Share (NRS)</h1>
+    <div className="login">
+      <div>
+        <span>Name:</span>
+        <input className="inputs" id="user" onChange={(e) => {
+          user_name = e.target.value;
+        }}></input>
+      </div>
+      <div>
+        <span>Password:</span>
+        <input className="inputs" id="pass" type="password" onChange={(e) => {
+          password = e.target.value;
+        }}></input>
+      </div>
+      <button onClick={() => {
+        document.getElementById("user").value = "";
+        document.getElementById("pass").value = "";
+        fetch_user(user_name, password);
+      }}>Login</button>
+    </div>
+    <ParticlesBg type="circle" bg={true} />
+  </React.StrictMode>,
+  document.getElementById('root')
+);
+
+//ptfij vspo '0.7827192785440196'
+//rrdh ebmwo '0.14626640126255985'
+// bmeop r 0.6319558339108031
+// fgnkg abk 0.8382239400361933
