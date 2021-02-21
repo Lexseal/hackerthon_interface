@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   GoogleMap,
   useLoadScript,
@@ -52,7 +52,7 @@ const default_user = {
   work_lat: (Math.random()-0.5)+32.8686,
   work_lng: (Math.random()-0.5)-116.9728,
   return_time: 2,
-  perferece: Math.round(Math.random()*2-1),
+  perferece: Math.round(Math.random()*3-1),
   radius: Math.random()*5,
 }
 
@@ -78,11 +78,11 @@ export default function MapApp() {
     libraries,
   });
   const [user, setUser] = React.useState(default_user);
-  const [people, setMarkers] = React.useState(default_people);
+  const [people, setPeople] = React.useState(default_people);
   const [selected, setSelected] = React.useState(null);
 
   const onMapClick = React.useCallback((e) => {
-    setMarkers((current) => [
+    setPeople((current) => [
       ...current,
       {
         name: "John Doe",
@@ -135,15 +135,17 @@ export default function MapApp() {
   };
 
   const userUpdateOptions = {
-    method: 'PUT',
-    headers: { 'Content-type': 'application/json',
-    'Access-Control-Allow-Origin': '*'},
+    method: 'POST',
+    headers: { 'Content-type': 'application/json' },
     body: JSON.stringify(user),
   };
 
   fetch('http://localhost:8080/', userUpdateOptions)
-    .then(response => console.log(response))
-    .catch();
+     .then(response => response.json())
+     .then(data => {
+       console.log(data);
+     })
+     .catch();
 
   if (loadError) return "Error";
   if (!isLoaded) return "Loading...";
@@ -297,7 +299,7 @@ function SearchHome({ panTo, set_home }) {
       panTo({ lat, lng });
       set_home({ lat, lng });
     } catch (error) {
-      console.log("😱 Error: ", error);
+      console.log(error);
     }
   };
 
@@ -349,7 +351,7 @@ function SearchWork({ panTo, set_work }) {
       panTo({ lat, lng });
       set_work({ lat, lng });
     } catch (error) {
-      console.log("😱 Error: ", error);
+      console.log(error);
     }
   };
 
