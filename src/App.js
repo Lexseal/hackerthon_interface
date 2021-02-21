@@ -49,54 +49,47 @@ const default_user = {
   home_lat: null,
   home_lng: null,
   depart_time: 1,
-  work_lat: (Math.random()-0.5)+32.8686,
-  work_lng: (Math.random()-0.5)-116.9728,
+  work_lat: null,
+  work_lng: null,
   return_time: 2,
   perferece: Math.round(Math.random()*3-1),
-  radius: Math.random()*5,
+  radius: 10,
+  paired: false,
+  match: null,
 }
 
 const default_people = [];
-for (let i = 0; i < 5; i++) {
-  const person = {
-    name: generate_name()+" "+generate_name(),
-    home_lat: (Math.random()-0.5)+32.8686,
-    home_lng: (Math.random()-0.5)-116.9728,
-    depart_time: 1,
-    work_lat: (Math.random()-0.5)+32.8686,
-    work_lng: (Math.random()-0.5)-116.9728,
-    return_time: 2,
-    perferece: Math.round(Math.random()*2-1),
-    radius: Math.random()*5,
-  };
-  default_people.push(person);
-}
+// for (let i = 0; i < 5; i++) {
+//   const person = {
+//     name: generate_name()+" "+generate_name(),
+//     home_lat: (Math.random()-0.5)+32.8686,
+//     home_lng: (Math.random()-0.5)-116.9728,
+//     depart_time: 1,
+//     work_lat: (Math.random()-0.5)+32.8686,
+//     work_lng: (Math.random()-0.5)-116.9728,
+//     return_time: 2,
+//     perferece: Math.round(Math.random()*2-1),
+//     radius: Math.random()*10,
+//   };
+//   default_people.push(person);
+// }
 
 export default function MapApp() {
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
     libraries,
   });
+  const fetch_user = (name) => {
+    let user;
+    fetch('http://localhost:8080/fetch/?user='+name)
+     .then(response => response.json())
+     .then(data => user = data)
+     .catch();
+    return user;
+  }
   const [user, setUser] = React.useState(default_user);
   const [people, setPeople] = React.useState(default_people);
   const [selected, setSelected] = React.useState(null);
-
-  const onMapClick = React.useCallback((e) => {
-    setPeople((current) => [
-      ...current,
-      {
-        name: "John Doe",
-        home_lat: e.latLng.lat(),
-        home_lng: e.latLng.lng(),
-        depart_time: 1,
-        work_lat: e.latLng.lat(),
-        work_lng: e.latLng.lng(),
-        return_time: 2,
-        perferece: 0,
-        radius: 1,
-      },
-    ]);
-  }, []);
 
   const mapRef = React.useRef();
   const onMapLoad = React.useCallback((map) => {
@@ -136,17 +129,43 @@ export default function MapApp() {
 
   const userUpdateOptions = {
     method: 'POST',
-    headers: { 'Content-type': 'application/json' },
     body: JSON.stringify(user),
+    headers: { 'Content-type': 'application/json' },
   };
 
-  fetch('http://localhost:8080/', userUpdateOptions)
+  const search_neighbors = () => {
+    fetch('http://localhost:8080/', userUpdateOptions)
      .then(response => response.json())
      .then(data => {
        console.log(data);
+       setPeople(data);
      })
      .catch();
+  }
 
+  const request_match = () => {
+    fetch('http://localhost:8080/pair', userUpdateOptions)
+     .then(response => response.json())
+     .then(data => console.log(data))
+     .catch();
+  }
+
+  const pair_request = (event) => {
+    const other = event.target.id;
+    if (user.name === other) {
+      alert("cannot match to yourself");
+      return;
+    }
+    // otherwise
+    people.forEach((person) => {
+      if (person.name === other) {
+        if (person.paired) return;
+        setUser((user) => ({...user, paired: true, match: other}));
+        request_match();
+      }
+    })
+  }
+      
   if (loadError) return "Error";
   if (!isLoaded) return "Loading...";
 
@@ -171,6 +190,7 @@ export default function MapApp() {
           <span>return:</span>
           <input className="inputs" onChange={set_return_time}></input>
         </div>
+        <button onClick={search_neighbors}>Search</button>
       </div>
 
       <GoogleMap
@@ -235,7 +255,7 @@ export default function MapApp() {
             <div>
               <h2>
                 {selected.name}
-                <button className="pair-button">Pair</button>
+                <button className="pair-button" id={selected.name} onClick={pair_request}>Pair</button>
               </h2>
               <p>Home: {parseFloat(selected.home_lat).toFixed(4)}, {parseFloat(selected.home_lng).toFixed(4)}</p>
               <p>Work: {parseFloat(selected.work_lat).toFixed(4)}, {parseFloat(selected.work_lng).toFixed(4)}</p>
