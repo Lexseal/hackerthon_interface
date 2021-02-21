@@ -134,6 +134,16 @@ export default function MapApp() {
     setUser((user) => ({...user, return_time: time}));
   };
 
+  const set_preference = (e) => {
+    console.log(e.target.value);
+    setUser({...user, preference: parseInt(e.target.value)});
+  }
+
+  const set_radius = (e) => {
+    console.log(e.target.value);
+    setUser({...user, radius: parseInt(e.target.value)});
+  }
+
   const userUpdateOptions = {
     method: 'PUT',
     headers: { 'Content-type': 'application/json',
@@ -161,13 +171,25 @@ export default function MapApp() {
       <div className="settings">
         <SearchHome panTo={panTo} set_home={set_home} />
         <div>
-          <span>depart:</span>
+          <span>Depart:</span>
           <input className="inputs" onChange={set_depart_time}></input>
         </div>
         <SearchWork panTo={panTo} set_work={set_work} />
         <div>
-          <span>return:</span>
+          <span>Return:</span>
           <input className="inputs" onChange={set_return_time}></input>
+        </div>
+        <div>
+          <span>Preference:</span>
+          <select name="preference" id="preference" onChange={set_preference}>
+            <option value="1">Drive</option>
+            <option value="0">Neutral</option>
+            <option value="-1">Ride</option>
+          </select>
+        </div>
+        <div>
+          <span>Radius:</span>
+          <input className="inputs" type='text' onChange={set_radius}></input>
         </div>
       </div>
 
