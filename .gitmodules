@@ -1,0 +1,3 @@
+[submodule "hackathon_server"]
+	path = hackathon_server
+	url = https://github.com/Lexseal/hackathon_server
