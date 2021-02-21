@@ -36,57 +36,12 @@ const center = {
   lng: -117.161087, // san diego location
 };
 
-function generate_name() {
-  let name = "";
-  for (let i = 0; i < Math.random()*10; i++) {
-    name += String.fromCharCode(97+Math.floor(Math.random()*26))
-  }
-  return name;
-}
-
-const default_user = {
-  name: "Lexseal Lin",
-  home_lat: null,
-  home_lng: null,
-  depart_time: 1,
-  work_lat: null,
-  work_lng: null,
-  return_time: 2,
-  perferece: Math.round(Math.random()*3-1),
-  radius: 10,
-  paired: false,
-  match: null,
-}
-
-const default_people = [];
-// for (let i = 0; i < 5; i++) {
-//   const person = {
-//     name: generate_name()+" "+generate_name(),
-//     home_lat: (Math.random()-0.5)+32.8686,
-//     home_lng: (Math.random()-0.5)-116.9728,
-//     depart_time: 1,
-//     work_lat: (Math.random()-0.5)+32.8686,
-//     work_lng: (Math.random()-0.5)-116.9728,
-//     return_time: 2,
-//     perferece: Math.round(Math.random()*2-1),
-//     radius: Math.random()*10,
-//   };
-//   default_people.push(person);
-// }
-
-export default function MapApp() {
+export default function MapApp({ default_user, default_people }) {
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
     libraries,
   });
-  const fetch_user = (name) => {
-    let user;
-    fetch('http://localhost:8080/fetch/?user='+name)
-     .then(response => response.json())
-     .then(data => user = data)
-     .catch();
-    return user;
-  }
+  
   const [user, setUser] = React.useState(default_user);
   const [people, setPeople] = React.useState(default_people);
   const [selected, setSelected] = React.useState(null);
@@ -113,19 +68,27 @@ export default function MapApp() {
     let time = event.target.value;
     let date = new Date("1970-01-01 " + time);
     if (date === "Invalid Date") return;
-
-    time = parseInt(date.getHours())*60+parseInt(date.getMinutes());
-    setUser((user) => ({...user, depart_time: time}));
+    setUser((user) => ({...user, depart_time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false})}));
   };
 
   const set_return_time = (event) => {
     let time = event.target.value;
     let date = new Date("1970-01-01 " + time);
     if (date === "Invalid Date") return;
-
-    time = parseInt(date.getHours())*60+parseInt(date.getMinutes());
-    setUser((user) => ({...user, return_time: time}));
+    setUser((user) => ({...user, return_time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false})}));
   };
+
+  const set_preference = (e) => {
+    console.log(e.target.value);
+    let p = e.target.value;
+    setUser((user) => ({...user, preference: p}));
+  }
+
+  const set_radius = (e) => {
+    console.log(e.target.value);
+    let rad = e.target.value;
+    setUser((user) => ({...user, radius: rad}));
+  }
 
   const userUpdateOptions = {
     method: 'POST',
@@ -137,16 +100,24 @@ export default function MapApp() {
     fetch('http://localhost:8080/', userUpdateOptions)
      .then(response => response.json())
      .then(data => {
-       console.log(data);
+      //  console.log(data);
        setPeople(data);
      })
      .catch();
   }
 
-  const request_match = () => {
-    fetch('http://localhost:8080/pair', userUpdateOptions)
+  const request_match = (user_name, other_name) => {
+    console.log(userUpdateOptions.body);
+    fetch(`http://localhost:8080/pair/?from=${user_name}&to=${other_name}`)
      .then(response => response.json())
-     .then(data => console.log(data))
+     .then(data => {
+      if (data.paired == false) {
+        alert("user already paired");
+      }
+      setUser(data);
+      search_neighbors();
+      console.log(data);
+     })
      .catch();
   }
 
@@ -159,9 +130,11 @@ export default function MapApp() {
     // otherwise
     people.forEach((person) => {
       if (person.name === other) {
-        if (person.paired) return;
-        setUser((user) => ({...user, paired: true, match: other}));
-        request_match();
+        if (person.paired) {
+          alert("user already paired");
+          return;
+        }
+        request_match(user.name, other);
       }
     })
   }
@@ -182,15 +155,28 @@ export default function MapApp() {
       <div className="settings">
         <SearchHome panTo={panTo} set_home={set_home} />
         <div>
-          <span>depart:</span>
+          <span>Depart:</span>
           <input className="inputs" onChange={set_depart_time}></input>
         </div>
         <SearchWork panTo={panTo} set_work={set_work} />
         <div>
-          <span>return:</span>
+          <span>Return:</span>
           <input className="inputs" onChange={set_return_time}></input>
         </div>
+        <div>
+          <span>Preference:</span>
+          <select name="preference" id="preference" onChange={set_preference}>
+            <option value="1">Drive</option>
+            <option value="0">Neutral</option>
+            <option value="-1">Ride</option>
+          </select>
+        </div>
+        <div>
+          <span>Radius:</span>
+          <input className="inputs" type='text' onChange={set_radius}></input>
+        </div>
         <button onClick={search_neighbors}>Search</button>
+        <p>Current pairing: {user.match}</p>
       </div>
 
       <GoogleMap
@@ -205,7 +191,7 @@ export default function MapApp() {
         {people.map((person) => (
           <Marker
             key={`${person.home_lat}-${person.home_lng}`}
-            position={{ lat: person.home_lat, lng: person.home_lng }}
+            position={{ lat: parseFloat(person.home_lat), lng: parseFloat(person.home_lng) }}
             onClick={() => {
               setSelected(person);
             }}
@@ -261,7 +247,12 @@ export default function MapApp() {
               <p>Work: {parseFloat(selected.work_lat).toFixed(4)}, {parseFloat(selected.work_lng).toFixed(4)}</p>
               <p>Departure: {selected.depart_time}</p>
               <p>Return: {selected.return_time}</p>
-              <p>Preference: {selected.perferece}</p>
+              <p>Preference: {(() => {
+                if (selected.preferece == -1) return "ride";
+                else if (selected.preferece == 1) return "neutral";
+                else return "drive";
+                })()}</p>
+              <p>Paired: {selected.paired ? "true" : "false"}</p>
             </div>
           </InfoWindow>
         ) : null}
